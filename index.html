@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0f131a" />
+<title>Presensi Kelas</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('theme')||'dark'}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<nav class="nav" aria-label="Menu utama">
+  <a class="lnk active" href="#sec-scan"><i class="fas fa-camera"></i><span>Presensi</span></a>
+  <a class="lnk" href="#sec-roster"><i class="fas fa-list-check"></i><span>Kehadiran</span></a>
+  <a class="lnk" href="#sec-qr"><i class="fas fa-id-card"></i><span>QR pribadi</span></a>
+  <a class="lnk" href="#sec-join"><i class="fas fa-qrcode"></i><span>QR daftar</span></a>
+  <i class="sep"></i>
+  <button class="lnk" id="themeBtn" onclick="toggleTheme()" aria-label="Ganti tema terang/gelap"><i class="fas fa-moon" id="themeIcon"></i><span>Tema</span></button>
+  <button class="cta" onclick="openRegister()"><i class="fas fa-user-plus"></i><span>Daftar</span></button>
+</nav>
+
+<main class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="logo"><i class="fas fa-qrcode"></i></div>
+      <div><h1>Presensi Kelas</h1><p id="dateText">—</p></div>
+    </div>
+    <div class="top-right">
+      <div class="conn" id="connectionStatus"><span class="dot checking" id="statusDot"></span><span id="statusLabel">Mengecek…</span></div>
+      <div class="clock" id="clock">00:00:00</div>
+    </div>
+  </header>
+
+  <section class="stats">
+    <article class="stat ring-card">
+      <svg viewBox="0 0 100 100" class="ring">
+        <circle cx="50" cy="50" r="44" class="ring-bg"/>
+        <circle cx="50" cy="50" r="44" class="ring-fg" id="ringFg"/>
+      </svg>
+      <div class="ring-text"><b id="pctText">0%</b><span>hadir</span></div>
+    </article>
+    <article class="stat"><i class="fas fa-users"></i><b id="statTotal">0</b><span>Total mahasiswa</span></article>
+    <article class="stat ok"><i class="fas fa-user-check"></i><b id="statHadir">0</b><span>Sudah hadir</span></article>
+    <article class="stat warn"><i class="fas fa-hourglass-half"></i><b id="statBelum">0</b><span>Belum hadir</span></article>
+  </section>
+
+  <div class="grid" id="sec-scan">
+    <section class="card scan-card">
+      <div class="card-head"><h2><i class="fas fa-camera"></i> Scan kehadiran</h2><span class="live"><span class="dot-live"></span>Live</span></div>
+      <div id="status" class="status"></div>
+      <div class="scanner" id="scannerArea">
+        <div id="qr-reader"></div>
+        <div class="idle" id="idleState"><i class="fas fa-qrcode"></i><p>Kamera belum aktif</p></div>
+        <div class="frame"><i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i><i class="beam"></i></div>
+        <div class="scan-text"><span id="scanStatusText">Arahkan ke QR Code</span></div>
+      </div>
+      <div class="controls">
+        <button class="btn primary" id="btnStartScan" onclick="toggleScanner()"><i class="fas fa-play"></i> <span id="btnScanLabel">Mulai scan</span></button>
+        <button class="btn icon" id="btnFlash" onclick="toggleFlash()" aria-label="Senter"><i class="fas fa-bolt"></i></button>
+      </div>
+      <p class="hint">Status: <b id="presensiStatus">Menunggu scan</b></p>
+    </section>
+
+    <section class="card feed-card">
+      <div class="card-head"><h2><i class="fas fa-clock-rotate-left"></i> Baru saja hadir</h2></div>
+      <ul class="feed" id="feed"><li class="empty">Belum ada yang hadir hari ini.</li></ul>
+    </section>
+  </div>
+
+  <section class="card roster" id="sec-roster">
+    <div class="card-head">
+      <h2><i class="fas fa-list-check"></i> Daftar mahasiswa <span class="count" id="totalMahasiswa">0</span></h2>
+      <div class="head-actions">
+        <button class="btn ghost" onclick="exportCSV()" id="btnExport"><i class="fas fa-file-arrow-down"></i> Ekspor CSV</button>
+        <button class="btn icon sm" onclick="loadDataMahasiswa(true)" aria-label="Muat ulang" id="btnRefresh"><i class="fas fa-rotate"></i></button>
+      </div>
+    </div>
+    <div class="tools">
+      <label class="search"><i class="fas fa-magnifying-glass"></i><input id="searchInput" type="search" placeholder="Cari nama atau NIM" /></label>
+      <div class="chips" id="chips">
+        <button class="chip active" data-f="all">Semua</button>
+        <button class="chip" data-f="hadir">Hadir</button>
+        <button class="chip" data-f="belum">Belum</button>
+      </div>
+    </div>
+    <div id="loadingData" class="loading"></div>
+    <ul class="list" id="tableBody"></ul>
+  </section>
+
+  <section class="card qrgen" id="sec-qr">
+    <div class="card-head"><h2><i class="fas fa-id-card"></i> QR pribadi mahasiswa</h2></div>
+    <p class="hint">Buat sekali, simpan, lalu pakai untuk scan setiap hari.</p>
+    <div class="qr-row">
+      <label class="search"><i class="fas fa-hashtag"></i><input type="text" id="qrNimInput" placeholder="Masukkan NIM" maxlength="15" /></label>
+      <button class="btn primary" onclick="generateQRCode()"><i class="fas fa-wand-magic-sparkles"></i> Buat QR</button>
+    </div>
+    <div class="qr-preview" id="qrPreview">
+      <div class="qr-box"><img id="qrResultImage" alt="QR Code" /></div>
+      <div class="qr-side">
+        <div id="qrInfo"></div>
+        <div class="controls">
+          <button class="btn primary" onclick="downloadQRCode()"><i class="fas fa-download"></i> Unduh</button>
+          <button class="btn ghost" onclick="closeQRPreview()">Tutup</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card join" id="sec-join">
+    <div class="card-head"><h2><i class="fas fa-qrcode"></i> QR pendaftaran</h2></div>
+    <div class="join-row">
+      <div class="qr-box"><img id="joinQr" alt="QR untuk membuka formulir pendaftaran" /></div>
+      <div class="qr-side">
+        <h3>Scan untuk mendaftar</h3>
+        <p class="hint">Mahasiswa baru cukup scan QR ini dengan kamera HP. Formulir pendaftaran langsung terbuka, tanpa perlu mengetik alamat.</p>
+        <div class="link-box"><i class="fas fa-link"></i><input id="joinLink" readonly aria-label="Tautan pendaftaran" /></div>
+        <div class="controls">
+          <button class="btn primary" onclick="toggleProject()"><i class="fas fa-expand"></i> Tampilkan di layar</button>
+          <button class="btn ghost" onclick="copyJoinLink()"><i class="fas fa-copy"></i> Salin</button>
+          <button class="btn ghost keep" onclick="downloadJoinQR()"><i class="fas fa-download"></i> Unduh</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot"><i class="fas fa-table"></i> Data tersimpan di <a id="sheetLink" target="_blank" rel="noopener">Google Sheets</a></footer>
+</main>
+
+<div class="modal" id="regModal" role="dialog" aria-modal="true" aria-labelledby="regTitle" onclick="if(event.target===this)closeRegister()">
+  <div class="modal-card">
+    <button class="x" onclick="closeRegister()" aria-label="Tutup"><i class="fas fa-xmark"></i></button>
+    <div class="modal-icon"><i class="fas fa-user-plus"></i></div>
+    <h3 id="regTitle">Daftar sebagai mahasiswa</h3>
+    <p class="hint">Isi data dirimu untuk masuk ke daftar kelas. QR pribadimu langsung dibuat setelah terdaftar.</p>
+    <form id="regForm" onsubmit="submitRegister(event)" autocomplete="off">
+      <label class="field"><span>NIM</span><span class="search"><i class="fas fa-hashtag"></i><input id="regNim" maxlength="15" placeholder="Contoh: 2401001" required /></span></label>
+      <label class="field"><span>Nama lengkap</span><span class="search"><i class="fas fa-user"></i><input id="regNama" maxlength="80" placeholder="Nama sesuai KTM" required /></span></label>
+      <div class="two">
+        <label class="field"><span>Kelas</span><span class="search"><i class="fas fa-school"></i><input id="regKelas" maxlength="30" placeholder="Contoh: TI-2A" required /></span></label>
+        <label class="field"><span>Jurusan</span><span class="search"><i class="fas fa-graduation-cap"></i><input id="regJurusan" maxlength="60" placeholder="Contoh: Informatika" required /></span></label>
+      </div>
+      <div class="form-msg" id="regMsg"></div>
+      <button class="btn primary" id="regBtn" type="submit" style="width:100%"><i class="fas fa-paper-plane"></i> Daftar sekarang</button>
+    </form>
+  </div>
+</div>
+
+<div class="result" id="result" aria-live="polite">
+  <div class="result-card" id="resultCard">
+    <div class="tick" id="resultIcon"></div>
+    <div class="avatar big" id="resultAvatar"></div>
+    <h3 id="resultName"></h3>
+    <p id="resultMeta"></p>
+    <span class="pill" id="resultPill"></span>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><i class="fas fa-circle-check"></i><span id="toastText"></span></div>
+
+<script src="script.js"></script>
+</body>
+</html>
